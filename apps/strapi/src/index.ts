@@ -3,6 +3,7 @@ import type { Core } from "@strapi/strapi"
 import { registerPopulatePageMiddleware } from "./documentMiddlewares/page"
 import { registerAdminUserSubscriber } from "./lifeCycles/adminUser"
 import { registerUserSubscriber } from "./lifeCycles/user"
+import { provisionStarter } from "./modules/provisioning/starters"
 import { getPopulateDynamicZoneConfig } from "./populateDynamicZone"
 
 export default {
@@ -21,7 +22,7 @@ export default {
    * This gives you an opportunity to set up your data model,
    * run jobs, or perform some special logic.
    */
-  bootstrap({ strapi }: { strapi: Core.Strapi }) {
+  async bootstrap({ strapi }: { strapi: Core.Strapi }) {
     registerAdminUserSubscriber({ strapi })
     registerUserSubscriber({ strapi })
 
@@ -30,5 +31,7 @@ export default {
 
     // Register Documents API middleware for dynamic zone population
     registerPopulatePageMiddleware({ strapi })
+    await provisionStarter(strapi)
+    strapi.log.info("🚀 Strapi application is ready.")
   },
 }

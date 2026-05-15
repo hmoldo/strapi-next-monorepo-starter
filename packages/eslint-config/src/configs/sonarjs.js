@@ -25,6 +25,7 @@ export default [
       "sonarjs/no-nested-template-literals": "off",
       "sonarjs/no-useless-catch": "warn",
       "sonarjs/no-inverted-boolean-check": "warn",
+      "sonarjs/no-small-switch": "off",
     },
   },
   {
