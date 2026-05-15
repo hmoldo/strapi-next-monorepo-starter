@@ -1,8 +1,14 @@
-import type { LifecycleEventType } from "../../../../../types/internals"
-import { handleHierarchyBeforeCreate } from "../../../../utils/hierarchy"
-
 export default {
-  async beforeCreate(event: LifecycleEventType<"beforeCreate">) {
-    await handleHierarchyBeforeCreate(event, "api::page.page")
+  beforeCreate(event) {
+    const { data } = event.params
+    if (data.slug) {
+      data.fullPath = data.slug.startsWith("/") ? data.slug : `/${data.slug}`
+    }
+  },
+  beforeUpdate(event) {
+    const { data } = event.params
+    if (data.slug) {
+      data.fullPath = data.slug.startsWith("/") ? data.slug : `/${data.slug}`
+    }
   },
 }

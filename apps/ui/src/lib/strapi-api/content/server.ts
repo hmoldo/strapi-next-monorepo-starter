@@ -51,8 +51,13 @@ export async function fetchPage(
       {
         locale,
         status: dm.isEnabled ? "draft" : "published",
-        populate: { seo: seoPopulate },
-        populateDynamicZone: { content: true },
+        // This is the critical change:
+        populate: {
+          seo: seoPopulate,
+          content: {
+            populate: "*",
+          },
+        },
       },
       requestInit,
       options
