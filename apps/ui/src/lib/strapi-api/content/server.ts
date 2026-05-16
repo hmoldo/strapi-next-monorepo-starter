@@ -1,3 +1,4 @@
+// apps/ui/src/lib/strapi-api/content/server.ts
 import "server-only"
 
 import type { UID } from "@repo/strapi-types"
@@ -51,11 +52,33 @@ export async function fetchPage(
       {
         locale,
         status: dm.isEnabled ? "draft" : "published",
-        // This is the critical change:
         populate: {
           seo: seoPopulate,
+          // Deep component populating strategy using multi-tier fragment injection
           content: {
-            populate: "*",
+            on: {
+              "sections.image-with-cta-button": {
+                populate: {
+                  image: basicImagePopulate,
+                  link: linkPopulate,
+                },
+              },
+              "sections.heading-with-cta-button": {
+                populate: {
+                  cta: linkPopulate,
+                },
+              },
+              "sections.carousel": {
+                populate: {
+                  images: {
+                    populate: {
+                      image: basicImagePopulate,
+                      link: linkPopulate,
+                    },
+                  },
+                },
+              },
+            },
           },
         },
       },

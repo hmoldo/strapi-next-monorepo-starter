@@ -1,6 +1,8 @@
 // apps/strapi/src/modules/provisioning/index.ts
 import type { Core } from "@strapi/strapi"
 
+import { initTravelAgent } from "./travel-agent"
+
 export const provisionStarter = async (strapi: Core.Strapi) => {
   const starterId = process.env.STRAPI_STARTER
 
@@ -15,7 +17,7 @@ export const provisionStarter = async (strapi: Core.Strapi) => {
   switch (starterId) {
     case "travel-agent":
       strapi.log.info("✈️  Executing Travel Agent initialization...")
-      // We will import the actual logic here in the next step
+      await initTravelAgent(strapi)
       break
 
     default:

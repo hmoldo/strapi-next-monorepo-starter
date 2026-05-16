@@ -10,57 +10,17 @@ import { fileURLToPath } from "node:url"
 const appDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..")
 const require = createRequire(import.meta.url)
 
-const requiredDocuments = [
+const REQUIRED_DOCUMENTS = [
   { label: "Page", uid: "api::page.page" },
   { label: "Navbar", uid: "api::navbar.navbar" },
   { label: "Footer", uid: "api::footer.footer" },
 ]
 
+// Ensure telemetry configurations are disabled early
 process.env.STRAPI_TELEMETRY_DISABLED ??= "1"
-const { compileStrapi, createStrapi } = require("@strapi/strapi")
-
 normalizeDatabaseHost()
 
-let strapi
-
-try {
-  strapi = await loadStrapi()
-
-  const states = await Promise.all(
-    requiredDocuments.map(async ({ label, uid }) => ({
-      label,
-      exists: await documentExists(uid),
-    }))
-  )
-
-  const missing = states.filter(({ exists }) => !exists)
-
-  for (const { label, exists } of states) {
-    console.log(`[seed:check] ${label}: ${exists ? "exists" : "missing"}`)
-  }
-
-  if (missing.length > 0) {
-    console.log(
-      `[seed:check] Missing baseline content in: ${missing
-        .map(({ label }) => label)
-        .join(", ")}`
-    )
-    process.exitCode = 10
-  } else {
-    console.log("[seed:check] Baseline content exists.")
-    process.exitCode = 0
-  }
-} catch (error) {
-  console.error("[seed:check] Failed to check seed state.")
-  if (error instanceof Error) {
-    console.error(error.stack || error.message || error)
-  } else {
-    console.error(error)
-  }
-  process.exitCode = 1
-} finally {
-  await strapi?.destroy?.().catch(() => {})
-}
+const { compileStrapi, createStrapi } = require("@strapi/strapi")
 
 async function loadStrapi() {
   const appContext = await compileStrapi({
@@ -69,19 +29,11 @@ async function loadStrapi() {
     autoReload: false,
     serveAdminPanel: false,
   })
-  const app = createStrapi(appContext)
 
-  app.log.level = "error"
+  const app = createStrapi(appContext)
+  app.log.level = "error" // Suppress standard boot spam logs
 
   return app.load()
-}
-
-async function documentExists(uid) {
-  const document = await strapi.documents(uid).findFirst({
-    fields: ["documentId"],
-  })
-
-  return document !== null
 }
 
 function normalizeDatabaseHost() {
@@ -89,3 +41,53 @@ function normalizeDatabaseHost() {
     process.env.DATABASE_HOST = "localhost"
   }
 }
+
+async function runCheck() {
+  let strapiInstance = null
+  let exitCode = 0
+
+  try {
+    strapiInstance = await loadStrapi()
+
+    const states = []
+    for (const { label, uid } of REQUIRED_DOCUMENTS) {
+      const doc = await strapiInstance.documents(uid).findFirst({
+        fields: ["documentId"],
+      })
+
+      const exists = doc !== null
+      console.log(`[seed:check] ${label}: ${exists ? "exists" : "missing"}`)
+      states.push({ label, exists })
+    }
+
+    const missing = states.filter(({ exists }) => !exists)
+
+    if (missing.length > 0) {
+      console.log(
+        `[seed:check] Missing baseline content in: ${missing.map((m) => m.label).join(", ")}`
+      )
+      exitCode = 10
+    } else {
+      console.log("[seed:check] Baseline content exists.")
+    }
+  } catch (error) {
+    console.error("[seed:check] Failed to check seed state.")
+    console.error(error instanceof Error ? error.stack || error.message : error)
+    exitCode = 1
+  } finally {
+    if (strapiInstance) {
+      try {
+        // Give hidden background queries a tiny window to settle down
+        await new Promise((resolve) => setTimeout(resolve, 100))
+        await strapiInstance.destroy()
+      } catch {
+        // Suppress any leftover pool complaints during teardown
+      }
+    }
+
+    process.exit(exitCode)
+  }
+}
+
+// Execute clean engine pipeline
+await runCheck()
