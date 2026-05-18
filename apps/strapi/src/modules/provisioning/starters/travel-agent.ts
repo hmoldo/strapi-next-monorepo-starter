@@ -16,6 +16,18 @@ export const travelAgentManifest: StarterManifest = {
       slug: "kyoto",
       imageName: "kyoto.jpg",
     },
+    {
+      title: "Bali Tropics",
+      location: "Indonesia",
+      slug: "bali",
+      imageName: "bali.jpg",
+    },
+    {
+      title: "Lalibela desert",
+      location: "Ethiopia",
+      slug: "lalibela",
+      imageName: "lalibela.jpg",
+    },
   ],
   navbar: {
     logoText: "Roam & Explore",
