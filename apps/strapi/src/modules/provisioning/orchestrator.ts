@@ -2,6 +2,7 @@
 import type { Core } from "@strapi/strapi"
 
 import { StarterEngine } from "./factory"
+import { STARTER_REGISTRY } from "./starters" // Import the map lookup layout
 
 export class ProvisioningOrchestrator {
   private strapi: Core.Strapi
@@ -24,12 +25,23 @@ export class ProvisioningOrchestrator {
       return
     }
 
+    // 1. Look up the requested starter target configuration inside our map registry index
+    const manifest = STARTER_REGISTRY[activeStarter]
+
+    if (!manifest) {
+      this.strapi.log.warn(
+        `⚠️ Provisioning: Target starter profile [${activeStarter}] requested but not registered in system maps.`
+      )
+
+      return
+    }
+
     this.strapi.log.info(
-      `🚀 Provisioning: Detected target profile [${activeStarter}]. Checking system state...`
+      `🚀 Provisioning: Detected valid target profile [${activeStarter}]. Checking system state...`
     )
 
     try {
-      // 1. If force cleanup is explicitly enabled, purge existing entries before the collision check
+      // 2. Clear old data elements first if explicitly instructed
       if (forceCleanup) {
         this.strapi.log.warn(
           `🔥 Provisioning: STRAPI_FORCE_CLEANUP is active! Purging core entities...`
@@ -37,7 +49,7 @@ export class ProvisioningOrchestrator {
         await this.executeDatabasePurge()
       }
 
-      // 2. Guard Check: Verify if pages exist to prevent accidental asset/content collision
+      // 3. Collision Guard Check: Verify if pages already exist
       const existingPages = await this.strapi
         .documents("api::page.page")
         .findMany({
@@ -52,28 +64,15 @@ export class ProvisioningOrchestrator {
         return
       }
 
-      // 3. Execute specific provisioning pipelines based on the environment flag
-      if (activeStarter === "travel-agent") {
-        this.strapi.log.info(
-          `⚡ Provisioning: Launching engine for [${activeStarter}]...`
-        )
+      // 4. Zero conditional code branches. Pass the decoupled object directly into the engine.
+      this.strapi.log.info(
+        `⚡ Provisioning: Launching engine for manifest ID: [${manifest.id}]...`
+      )
+      await this.engine.build(manifest)
 
-        await this.engine.build({
-          id: "travel-agent",
-          navbar: { logoText: "Travel Agent Starter", links: [] },
-          footer: { sections: [] },
-          pages: [],
-          destinations: [],
-        })
-
-        this.strapi.log.info(
-          `✅ Provisioning: Successfully initialized target starter profile [${activeStarter}].`
-        )
-      } else {
-        this.strapi.log.warn(
-          `⚠️ Provisioning: Unknown starter profile [${activeStarter}] requested.`
-        )
-      }
+      this.strapi.log.info(
+        `✅ Provisioning: Successfully initialized target starter profile [${activeStarter}].`
+      )
     } catch (error) {
       this.strapi.log.error(
         "❌ Provisioning: Critical execution error encountered during bootstrap phase:",
@@ -82,11 +81,12 @@ export class ProvisioningOrchestrator {
     }
   }
 
-  /**
-   * Drops existing page elements safely to reset the operational baseline
-   */
   private async executeDatabasePurge(): Promise<void> {
-    const pages = await this.strapi.documents("api::page.page").findMany()
+    // 1. Purge Pages with explicit high pagination limit
+    const pages = await this.strapi.documents("api::page.page").findMany({
+      page: 1,
+      pageSize: 1000,
+    })
 
     this.strapi.log.info(
       `🔥 Provisioning: Purging ${pages.length} dynamic page collections...`
@@ -97,7 +97,21 @@ export class ProvisioningOrchestrator {
       })
     }
 
-    // Single types like Navbar/Footer will overwrite natively during seeding,
-    // but clearing collections keeps the environment perfectly pristine.
+    // 2. Purge Destinations with explicit high pagination limit
+    const destinations = await this.strapi
+      .documents("api::destination.destination")
+      .findMany({
+        page: 1,
+        pageSize: 1000,
+      })
+
+    this.strapi.log.info(
+      `🔥 Provisioning: Purging ${destinations.length} stale destination entry items...`
+    )
+    for (const dest of destinations) {
+      await this.strapi.documents("api::destination.destination").delete({
+        documentId: dest.documentId,
+      })
+    }
   }
 }
