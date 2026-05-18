@@ -12,11 +12,9 @@ export class ProvisioningOrchestrator {
     this.engine = new StarterEngine(strapi)
   }
 
-  /**
-   * Evaluates the current environment state and triggers the active starter schema deployment.
-   */
   public async handleLifecycleHook(): Promise<void> {
     const activeStarter = process.env.STRAPI_STARTER
+    const forceCleanup = process.env.STRAPI_FORCE_CLEANUP === "true"
 
     if (!activeStarter) {
       this.strapi.log.info(
@@ -31,7 +29,15 @@ export class ProvisioningOrchestrator {
     )
 
     try {
-      // Guard Check: Verify if pages have already been built to prevent asset/content collision
+      // 1. If force cleanup is explicitly enabled, purge existing entries before the collision check
+      if (forceCleanup) {
+        this.strapi.log.warn(
+          `🔥 Provisioning: STRAPI_FORCE_CLEANUP is active! Purging core entities...`
+        )
+        await this.executeDatabasePurge()
+      }
+
+      // 2. Guard Check: Verify if pages exist to prevent accidental asset/content collision
       const existingPages = await this.strapi
         .documents("api::page.page")
         .findMany({
@@ -46,13 +52,12 @@ export class ProvisioningOrchestrator {
         return
       }
 
-      // Execute specific provisioning pipelines based on the environment flag
+      // 3. Execute specific provisioning pipelines based on the environment flag
       if (activeStarter === "travel-agent") {
         this.strapi.log.info(
           `⚡ Provisioning: Launching engine for [${activeStarter}]...`
         )
 
-        // Temporarily feeding a minimum runtime manifest structure to verify the orchestration link
         await this.engine.build({
           id: "travel-agent",
           navbar: { logoText: "Travel Agent Starter", links: [] },
@@ -75,5 +80,24 @@ export class ProvisioningOrchestrator {
         error
       )
     }
+  }
+
+  /**
+   * Drops existing page elements safely to reset the operational baseline
+   */
+  private async executeDatabasePurge(): Promise<void> {
+    const pages = await this.strapi.documents("api::page.page").findMany()
+
+    this.strapi.log.info(
+      `🔥 Provisioning: Purging ${pages.length} dynamic page collections...`
+    )
+    for (const page of pages) {
+      await this.strapi.documents("api::page.page").delete({
+        documentId: page.documentId,
+      })
+    }
+
+    // Single types like Navbar/Footer will overwrite natively during seeding,
+    // but clearing collections keeps the environment perfectly pristine.
   }
 }
