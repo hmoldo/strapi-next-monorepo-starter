@@ -3,7 +3,7 @@ import type { Core } from "@strapi/strapi"
 import { registerPopulatePageMiddleware } from "./documentMiddlewares/page"
 import { registerAdminUserSubscriber } from "./lifeCycles/adminUser"
 import { registerUserSubscriber } from "./lifeCycles/user"
-import { provisionStarter } from "./modules/provisioning/starters"
+import { ProvisioningOrchestrator } from "./modules/provisioning/orchestrator"
 import { getPopulateDynamicZoneConfig } from "./populateDynamicZone"
 
 export default {
@@ -31,7 +31,11 @@ export default {
 
     // Register Documents API middleware for dynamic zone population
     registerPopulatePageMiddleware({ strapi })
-    await provisionStarter(strapi)
+
+    // Dynamic, manifest-driven starter architecture
+    const orchestrator = new ProvisioningOrchestrator(strapi)
+    await orchestrator.handleLifecycleHook()
+
     strapi.log.info("🚀 Strapi application is ready.")
   },
 }
