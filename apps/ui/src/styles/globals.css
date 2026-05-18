@@ -1,6 +1,8 @@
+/* apps/ui/src/styles/globals.css */
 @import "tailwindcss";
 @import "@repo/design-system/theme.css";
 @import "@repo/design-system/custom-styles.css";
+@import "./starter-themes.css";
 
 @plugin "tailwindcss-animate";
 

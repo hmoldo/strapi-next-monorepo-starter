@@ -1,0 +1,18 @@
+/* apps/ui/src/styles/starter-themes.css */
+
+/* --- Travel Agent Theme Profiles (Default Setup) --- */
+:root,
+[data-theme="travel-agent"] {
+  --color-starter-primary: #020617; /* Deep slate night sky */
+  --color-starter-accent: #0284c7; /* Marine sea blue */
+  --color-starter-surface: #ffffff;
+  --radius-starter: 0.75rem; /* Soft, modern luxury curvature */
+}
+
+/* --- Real Estate Theme Profiles --- */
+[data-theme="real-estate"] {
+  --color-starter-primary: #14532d; /* High-end corporate emerald green */
+  --color-starter-accent: #f59e0b; /* Elegant house gold accent */
+  --color-starter-surface: #f8fafc;
+  --radius-starter: 0px; /* Flat, sharp geometric lines */
+}

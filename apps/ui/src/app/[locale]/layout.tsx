@@ -1,3 +1,4 @@
+// apps/ui/src/app/[locale]/layout.tsx
 import "@/styles/globals.css"
 
 import type { Metadata } from "next"
@@ -13,6 +14,7 @@ import StrapiNavbar from "@/components/page-builder/single-types/navbar/StrapiNa
 import { ClientProviders } from "@/components/providers/ClientProviders"
 import { ServerProviders } from "@/components/providers/ServerProviders"
 import TrackingScripts from "@/components/providers/TrackingScripts"
+import ThemeHydrator from "@/components/starter-extensions/ThemeHydrator"
 import { Toaster } from "@/components/ui/sonner"
 import { debugStaticParams } from "@/lib/build"
 import { fontRoboto } from "@/lib/fonts"
@@ -33,6 +35,14 @@ export const metadata: Metadata = {
   },
 }
 
+const CSR_ENVs = [
+  "NODE_ENV",
+  "DEBUG_STRAPI_CLIENT_API_CALLS",
+  "SHOW_NON_BLOCKING_ERRORS",
+  "APP_PUBLIC_URL",
+  "IMGPROXY_URL",
+] as const
+
 export default async function RootLayout({
   children,
   params,
@@ -42,47 +52,30 @@ export default async function RootLayout({
   if (!isValidLocale(locale)) {
     notFound()
   }
-  // Enable static rendering
-  // https://next-intl-docs.vercel.app/docs/getting-started/app-router/with-i18n-routing#static-rendering
+
   setRequestLocale(locale)
 
-  /**
-   * This allows you to make following env variables RUNTIME.
-   *
-   * Following variables aren't going to be embedded during the build-time. To avoid embedding,
-   * you must not use "NEXT_PUBLIC_" prefix for env variable that you want to keep
-   * private and dynamic at runtime.
-   *
-   * Instead, use this method to pass only the required env variables to the client side.
-   * To access them from CSR or SSR context, read them using `getEnvVar()` helper.
-   *
-   * Do not include "STRAPI_URL", we want to keep it private (hence why we use proxying).
-   */
-  const CSR_ENVs = [
-    "NODE_ENV",
-    "DEBUG_STRAPI_CLIENT_API_CALLS",
-    "SHOW_NON_BLOCKING_ERRORS",
-    "APP_PUBLIC_URL",
-    "IMGPROXY_URL",
-  ]
+  // Pull our modular starter target config profile (defaults safely to travel-agent)
+  const currentStarter = process.env.STRAPI_STARTER || "travel-agent"
+
+  // Reduce the environment mapping config parameters cleanly
+  const clientEnvConfig = CSR_ENVs.reduce(
+    (acc, curr) => {
+      acc[curr] = process.env[curr]
+
+      return acc
+    },
+    {} as Record<string, string | undefined>
+  )
 
   return (
-    <html lang={locale} suppressHydrationWarning>
+    <html lang={locale} data-theme={currentStarter} suppressHydrationWarning>
       <head>
         <Script id="csr-config" strategy="beforeInteractive">
           {`
-         window.CSR_CONFIG = window.CSR_CONFIG || {};
-         window.CSR_CONFIG = ${JSON.stringify({
-           ...CSR_ENVs.reduce(
-             (acc, curr) => {
-               acc[curr] = process.env?.[curr]
-
-               return acc
-             },
-             {} as Record<string, string | undefined>
-           ),
-         })};
-       `}
+            window.CSR_CONFIG = window.CSR_CONFIG || {};
+            Object.assign(window.CSR_CONFIG, ${JSON.stringify(clientEnvConfig)});
+          `}
         </Script>
       </head>
       <body
@@ -91,6 +84,9 @@ export default async function RootLayout({
           fontRoboto.variable
         )}
       >
+        {/* Isolated starter component synchronization node */}
+        <ThemeHydrator theme={currentStarter} />
+
         <TrackingScripts />
         <ServerProviders>
           <StrapiPreviewListener />
